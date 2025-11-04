@@ -57,160 +57,163 @@
     </div>
   </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { 
-      getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, enableIndexedDbPersistence, arrayUnion, getDoc
-    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+ <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import { 
+    getFirestore, collection, doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, enableIndexedDbPersistence
+  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
-    // 🔥 Firebase ของตัน
-    const firebaseConfig = {
-      apiKey: "AIzaSyB-0FWP39H0wli0ud2HWPOoGfoOUAaxfPU",
-      authDomain: "home-work-9cf09.firebaseapp.com",
-      projectId: "home-work-9cf09",
-      storageBucket: "home-work-9cf09.firebasestorage.app",
-      messagingSenderId: "474608131177",
-      appId: "1:474608131177:web:7ae6caaefc83f0bd1496f8",
-      measurementId: "G-RSNPR8VB08"
-    };
+  // 🔥 Firebase ของตัน
+  const firebaseConfig = {
+    apiKey: "AIzaSyB-0FWP39H0wli0ud2HWPOoGfoOUAaxfPU",
+    authDomain: "home-work-9cf09.firebaseapp.com",
+    projectId: "home-work-9cf09",
+    storageBucket: "home-work-9cf09.firebasestorage.app",
+    messagingSenderId: "474608131177",
+    appId: "1:474608131177:web:7ae6caaefc83f0bd1496f8",
+    measurementId: "G-RSNPR8VB08"
+  };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    enableIndexedDbPersistence(db).catch(err => console.warn("Offline error:", err));
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  enableIndexedDbPersistence(db).catch(err => console.warn("Offline error:", err));
 
-    let currentSubject = "";
-    let unsubscribeHW = null;
+  let currentSubject = "";
+  let unsubscribeHW = null;
 
-    // ---------- โหลดรายวิชา ----------
-    function loadSubjects() {
-      const subjectList = document.getElementById("subject-list");
-      onSnapshot(collection(db, "subjects"), (snapshot) => {
-        subjectList.innerHTML = "";
-        snapshot.forEach((docSnap) => {
-          const sub = docSnap.id;
-          const row = document.createElement("div");
-          row.className = "subject-row";
+  // ---------- โหลดรายวิชา ----------
+  function loadSubjects() {
+    const subjectList = document.getElementById("subject-list");
+    onSnapshot(collection(db, "subjects"), (snapshot) => {
+      subjectList.innerHTML = "";
+      snapshot.forEach((docSnap) => {
+        const sub = docSnap.id;
+        const row = document.createElement("div");
+        row.className = "subject-row";
 
-          const btn = document.createElement("button");
-          btn.className = "subject-btn";
-          btn.textContent = sub;
-          btn.addEventListener("click", () => openSubject(sub));
+        const btn = document.createElement("button");
+        btn.className = "subject-btn";
+        btn.textContent = sub;
+        btn.addEventListener("click", () => openSubject(sub));
 
-          const del = document.createElement("button");
-          del.className = "delete-subject-btn";
-          del.textContent = "ลบ";
-          del.addEventListener("click", () => deleteSubject(sub));
+        const del = document.createElement("button");
+        del.className = "delete-subject-btn";
+        del.textContent = "ลบ";
+        del.addEventListener("click", () => deleteSubject(sub));
 
-          row.appendChild(btn);
-          row.appendChild(del);
-          subjectList.appendChild(row);
-        });
+        row.appendChild(btn);
+        row.appendChild(del);
+        subjectList.appendChild(row);
       });
-    }
-
-    // ---------- เพิ่มวิชา ----------
-    document.getElementById("add-subject-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const sub = document.getElementById("new-subject").value.trim();
-      if (!sub) return;
-      await setDoc(doc(db, "subjects", sub), { homeworks: [] }, { merge: true });
-      document.getElementById("new-subject").value = "";
     });
+  }
 
-    // ---------- เปิดดูการบ้าน ----------
-    async function openSubject(sub) {
-      currentSubject = sub;
-      document.getElementById("subject-section").style.display = "none";
-      document.getElementById("homework-section").style.display = "block";
-      document.getElementById("subject-title").textContent = "วิชา: " + sub;
-      renderHomework();
-    }
+  // ---------- เพิ่มวิชา ----------
+  document.getElementById("add-subject-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const sub = document.getElementById("new-subject").value.trim();
+    if (!sub) return;
+    await setDoc(doc(db, "subjects", sub), { homeworks: [] }, { merge: true });
+    document.getElementById("new-subject").value = "";
+  });
 
-    document.getElementById("backBtn").addEventListener("click", () => {
-      if (unsubscribeHW) unsubscribeHW();
-      document.getElementById("subject-section").style.display = "block";
-      document.getElementById("homework-section").style.display = "none";
-    });
+  // ---------- เปิดดูการบ้าน ----------
+  function openSubject(sub) {
+    currentSubject = sub;
+    document.getElementById("subject-section").style.display = "none";
+    document.getElementById("homework-section").style.display = "block";
+    document.getElementById("subject-title").textContent = "วิชา: " + sub;
+    renderHomework();
+  }
 
-    // ---------- แสดงการบ้านแบบเรียลไทม์ ----------
-    function renderHomework() {
-      const hwList = document.getElementById("hw-list");
-      unsubscribeHW = onSnapshot(doc(db, "subjects", currentSubject), (snap) => {
-        hwList.innerHTML = "";
-        if (!snap.exists()) return;
-        const data = snap.data();
-        data.homeworks?.forEach((hw, i) => {
-          const div = document.createElement("div");
-          div.className = "homework-item";
-          div.innerHTML = `
-            <div>
-              <strong>${hw.name}</strong><br>
-              <small>วันสั่ง: ${hw.assign}</small><br>
-              <small>กำหนดส่ง: ${hw.date}</small>
-            </div>
-            <button class="delete-btn">ลบ</button>
-          `;
-          div.querySelector(".delete-btn").addEventListener("click", () => deleteHomework(i));
-          hwList.appendChild(div);
-        });
-      });
-    }
+  document.getElementById("backBtn").addEventListener("click", () => {
+    if (unsubscribeHW) unsubscribeHW();
+    document.getElementById("subject-section").style.display = "block";
+    document.getElementById("homework-section").style.display = "none";
+  });
 
-    // ---------- เพิ่มการบ้าน (เร็วขึ้น) ----------
-    document.getElementById("hw-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const name = document.getElementById("hw-name").value.trim();
-      const assign = document.getElementById("hw-assign").value;
-      const date = document.getElementById("hw-date").value;
-      if (!name) return;
-
-      // ✅ แสดงใน UI ก่อนเลย
-      const hwList = document.getElementById("hw-list");
-      const temp = document.createElement("div");
-      temp.className = "homework-item";
-      temp.innerHTML = `
-        <div>
-          <strong>${name}</strong><br>
-          <small>วันสั่ง: ${assign}</small><br>
-          <small>กำหนดส่ง: ${date}</small>
-        </div>
-        <button class="delete-btn">ลบ</button>
-      `;
-      hwList.appendChild(temp);
-
-      // ✅ บันทึกทันทีโดยไม่ต้องรออ่านก่อน
-      const docRef = doc(db, "subjects", currentSubject);
-      await setDoc(docRef, { homeworks: arrayUnion({ name, assign, date }) }, { merge: true })
-        .catch((err) => console.error("❌ Error:", err));
-
-      e.target.reset();
-    });
-
-    // ---------- ลบการบ้าน ----------
-    async function deleteHomework(index) {
-      const docRef = doc(db, "subjects", currentSubject);
-      const snap = await getDoc(docRef);
+  // ---------- แสดงการบ้านแบบเรียลไทม์ ----------
+  function renderHomework() {
+    const hwList = document.getElementById("hw-list");
+    unsubscribeHW = onSnapshot(doc(db, "subjects", currentSubject), (snap) => {
+      hwList.innerHTML = "";
       if (!snap.exists()) return;
       const data = snap.data();
-      data.homeworks.splice(index, 1);
-      await updateDoc(docRef, { homeworks: data.homeworks });
-    }
+      data.homeworks?.forEach((hw, i) => {
+        const div = document.createElement("div");
+        div.className = "homework-item";
+        div.innerHTML = `
+          <div>
+            <strong>${hw.name}</strong><br>
+            <small>วันสั่ง: ${hw.assign}</small><br>
+            <small>กำหนดส่ง: ${hw.date}</small>
+          </div>
+          <button class="delete-btn">ลบ</button>
+        `;
+        div.querySelector(".delete-btn").addEventListener("click", () => deleteHomework(i));
+        hwList.appendChild(div);
+      });
+    });
+  }
 
-    // ---------- ลบวิชา ----------
-    async function deleteSubject(sub) {
-      if (!confirm(`แน่ใจว่าจะลบ "${sub}" และงานทั้งหมด?`)) return;
-      await deleteDoc(doc(db, "subjects", sub));
-    }
+  // ---------- เพิ่มการบ้าน (เร็ว + sync ได้) ----------
+  document.getElementById("hw-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("hw-name").value.trim();
+    const assign = document.getElementById("hw-assign").value;
+    const date = document.getElementById("hw-date").value;
+    if (!name) return;
 
-    // ---------- เริ่ม ----------
-    loadSubjects();
+    // ✅ แสดงใน UI ก่อนเลย (เร็ว)
+    const hwList = document.getElementById("hw-list");
+    const temp = document.createElement("div");
+    temp.className = "homework-item";
+    temp.innerHTML = `
+      <div>
+        <strong>${name}</strong><br>
+        <small>วันสั่ง: ${assign}</small><br>
+        <small>กำหนดส่ง: ${date}</small>
+      </div>
+      <button class="delete-btn">ลบ</button>
+    `;
+    hwList.appendChild(temp);
 
-    // ---------- Service Worker ----------
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js')
-        .then(reg => console.log("✅ Service Worker:", reg.scope))
-        .catch(err => console.error("❌ SW failed:", err));
-    }
-  </script>
+    // ✅ อ่าน + เขียน Firebase แบบ background
+    const docRef = doc(db, "subjects", currentSubject);
+    const snap = await getDoc(docRef);
+    const data = snap.exists() ? snap.data() : { homeworks: [] };
+    data.homeworks.push({ name, assign, date });
+    await setDoc(docRef, data);
+
+    e.target.reset();
+  });
+
+  // ---------- ลบการบ้าน ----------
+  async function deleteHomework(index) {
+    const docRef = doc(db, "subjects", currentSubject);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return;
+    const data = snap.data();
+    data.homeworks.splice(index, 1);
+    await updateDoc(docRef, { homeworks: data.homeworks });
+  }
+
+  // ---------- ลบวิชา ----------
+  async function deleteSubject(sub) {
+    if (!confirm(`แน่ใจว่าจะลบ "${sub}" และงานทั้งหมด?`)) return;
+    await deleteDoc(doc(db, "subjects", sub));
+  }
+
+  // ---------- เริ่ม ----------
+  loadSubjects();
+
+  // ---------- Service Worker ----------
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log("✅ Service Worker:", reg.scope))
+      .catch(err => console.error("❌ SW failed:", err));
+  }
+</script>
+
 </body>
 </html>
